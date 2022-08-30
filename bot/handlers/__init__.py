@@ -1,4 +1,8 @@
-from .errors import dp
-from .users import dp
+from aiogram import Router
 
-__all__ = ['dp']
+from . import private, channel
+
+router = Router()
+
+router.include_router(channel.router)
+router.include_router(private.router)
