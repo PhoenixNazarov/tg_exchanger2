@@ -3,7 +3,7 @@ from typing import Optional
 from aiogram.types import User
 
 from bot.database.models import User as UserModel
-from . import users
+from . import users, transactions
 from .query_controller import QueryController
 
 
@@ -44,3 +44,8 @@ class BotQueryController:
         await users.update_user(self._query_controller, self._user, {
             'language': lang
         })
+
+    async def create_transaction(self, data):
+        # todo check trans count for user
+
+        return await transactions.create_transaction(self._query_controller, self._user.id, )

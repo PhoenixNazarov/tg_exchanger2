@@ -3,7 +3,7 @@ import datetime
 from aiogram.types import Message, Chat, User, Update
 
 
-def generate_message(text='', user_id=123):
+def generate_message(text='', user_id=557060775):
     return Update(
         update_id = 1,
 
