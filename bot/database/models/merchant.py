@@ -8,14 +8,14 @@ class Merchant(BaseModel):
 
     id = Column(ForeignKey('users.id'), nullable = False, unique = True, primary_key = True)
 
-    accumulated_commission = relationship('MerchantCommission', backref = 'merchant', lazy = 'select')
+    accumulated_commission = relationship('MerchantCommission', backref = 'Merchant', lazy = 'selectin', uselist=False)
 
     allow_max_amount = Column(Integer, default = 1000)
     good_transactions = Column(Integer, default = 0)
     bad_transactions = Column(Integer, default = 0)
     rating = Column(Integer, default = 0)
 
-    user = relationship('User', backref = 'Merchant', lazy = 'select', viewonly=True)
+    user = relationship('User', backref = 'Merchant', lazy = 'selectin', viewonly=True, uselist=False)
     transactions = relationship('Transaction', backref = 'Merchant', lazy = 'select')
 
     def __int__(self, id):

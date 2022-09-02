@@ -16,6 +16,8 @@ async def test_add_model(session, model, db_sess):
     assert await db_sess.count_models(session, model) == 1
     assert await db_sess.get_model(session, model, model1.id) == model2
     assert await db_sess.get_models(session, model) == [model1]
+    assert await db_sess.get_models_filter(session, model, {'id': model1.id}) == [model1]
+    assert await db_sess.get_models_filter(session, model, {'id': -1}) == []
 
 
 async def test_add_get(session, model, db_sess):

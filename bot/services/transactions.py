@@ -21,8 +21,27 @@ async def create_transaction(session: QueryController,
                              have_currency, have_amount,
                              get_currency, get_amount,
                              rate,
+                             commission_user, commission_merchant,
                              get_thb_type, option1, option2, option3) -> Transaction:
-    pass
+    transaction = Transaction(
+        user_id = user_id,
+        have_currency = have_currency,
+        have_amount = have_amount,
+        get_currency = get_currency,
+        get_amount = get_amount,
+        rate = rate,
+        # todo
+    )
+    return await session(transaction).add_model()
+
+
+async def get_transaction(session: QueryController, transaction_id: int) -> Transaction:
+    return await session(Transaction).get_model(transaction_id)
+
+
+async def get_work_transaction(session: QueryController, transaction_id: int) -> Transaction:
+    return await session(Transaction).get_model(transaction_id)
+
 
 #
 # async def create_pre_transaction(session: AsyncSession, data, user) -> TransactionModerate:

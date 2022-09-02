@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Optional, Union, Type
 from sqlalchemy import select, update, or_, func
+from sqlalchemy.sql import expression
 
 from bot.utils.misc.save_execute import *
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +33,9 @@ class QueryController:
     async def get_models(self):
         return await get_models(self._session, self._type_model)
 
+    async def get_models_filter(self, filters: Optional[dict] = None):
+        return await get_models_filter(self._session, self._type_model, filters)
+
     async def get_model(self, _id):
         return await get_model(self._session, self._type_model, _id)
 
@@ -45,28 +49,45 @@ class QueryController:
         return await delete_model(self._session, self._model)
 
 
+async def __execute_sql(session: AsyncSession, sql, _save_commit: bool = True):
+    ans = await session.execute(sql)
+    if _save_commit:
+        await save_commit(session)
+    return ans
+
+
 async def count_models(session: AsyncSession, model: Type[Base]) -> int:
     sql = select([func.count()]).select_from(model)
-    query = await session.execute(sql)
+    query = await __execute_sql(session, sql, False)
     return query.scalar()
 
 
 async def get_models(session: AsyncSession, model: Type[Base]) -> list[Base]:
     sql = select(model)
-    query = await session.execute(sql)
+    query = await __execute_sql(session, sql, False)
+    return [u for u, in query]
+
+
+async def get_models_filter(session: AsyncSession, model: Type[Base], filters: Optional[dict] = None) -> list[Base]:
+    sql = select(model)
+
+    if filters:
+        for k, v in filters.items():
+            sql = sql.filter(model.__getattribute__(model, k) == v)
+
+    query = await __execute_sql(session, sql, False)
     return [u for u, in query]
 
 
 async def get_model(session: AsyncSession, model: Type[Base], _id: int) -> Optional[Base]:
     sql = select(model).where(model.id == _id)
-    query = await session.execute(sql)
+    query = await __execute_sql(session, sql, False)
     return query.scalar_one_or_none()
 
 
 async def update_model_values(session: AsyncSession, model: Base, data: dict) -> None:
     sql = update(type(model)).where(type(model).id == model.id).values(**data)
-    await session.execute(sql)
-    await save_commit(session)
+    await __execute_sql(session, sql)
     for k, v in data.items():
         model.__setattr__(k, v)
 

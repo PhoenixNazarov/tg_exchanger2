@@ -55,6 +55,8 @@ class TransactionForm(StatesGroup):
     bank_number = State()
     bank_name = State()
 
+    public = State()
+
 
 @router.message(Command(commands = ['newtrans']))
 async def have_currency(message: Message, state: FSMContext):
@@ -208,5 +210,17 @@ async def end(message: Message, state: FSMContext):
                          reply_markup = ReplyKeyboardBuilder().add(KeyboardButton(text = _('Public')),
                                                                    KeyboardButton(text = _('Cancel')))
                          .as_markup(resize_keyboard = True))
-
+    await state.set_state(TransactionForm.public)
     return await state.get_data()
+
+
+@router.message(TransactionForm.public, F.text == 'Cancel')
+async def cancel(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer(text = _('Cancel create transaction'), reply_markup = ReplyKeyboardRemove())
+
+
+@router.message(TransactionForm.public, F.text == 'Public')
+async def public(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer(text = _('Cancel create transaction'), reply_markup = ReplyKeyboardRemove())

@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     db: str
 
     admins: List[int]
+    merchants: List[int]
+
+    max_user_transaction: int
 
     @validator("fsm_mode")
     def fsm_type_check(cls, v):

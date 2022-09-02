@@ -1,6 +1,6 @@
 from typing import Optional
 
-from bot.database.models import User as UserModel
+from bot.database.models import User
 from .query_controller import QueryController
 
 
@@ -9,8 +9,8 @@ async def create_user(session: QueryController,
                       first_name: str,
                       last_name: str,
                       username: str,
-                      language: str) -> UserModel:
-    user_model = UserModel(
+                      language: str) -> User:
+    user_model = User(
         id = user_id,
         first_name = first_name,
         last_name = last_name,
@@ -20,11 +20,11 @@ async def create_user(session: QueryController,
     return await session(user_model).add_model()
 
 
-async def get_user(session: QueryController, user_id: int) -> Optional[UserModel]:
-    return await session(UserModel).get_model(user_id)
+async def get_user(session: QueryController, user_id: int) -> Optional[User]:
+    return await session(User).get_model(user_id)
 
 
-async def update_user(session: QueryController, user_model: UserModel, data: dict) -> Optional[UserModel]:
+async def update_user(session: QueryController, user_model: User, data: dict) -> Optional[User]:
     await session(user_model).update_model_values(
         data
     )

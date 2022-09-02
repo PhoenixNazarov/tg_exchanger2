@@ -34,6 +34,9 @@ class TransStatus(enum.Enum):
     canceled = -1
     good_finished = -2
 
+    complain_by_user = -8
+    complain_by_merchant = -9
+
     bad_finished_by_user = -6
     bad_finished_by_merchant = -7
 

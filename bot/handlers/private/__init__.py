@@ -1,5 +1,4 @@
 from aiogram import Router, F
-from bot.filters.people_role import PeopleRoleFilter, PeopleRoles
 
 from . import users, admins, language
 
