@@ -1,5 +1,6 @@
-from strenum import StrEnum
 import enum
+
+from strenum import StrEnum
 
 __all__ = ['Currency', 'TransGet', 'TransStatus']
 
@@ -8,14 +9,18 @@ def _(t): return t
 
 
 class Currency(StrEnum):
-    BAT = 'THB'
+    THB = 'THB'
     RUB = 'RUB'
     USDT = 'USDT'
     USDC = 'USDC'
 
     @staticmethod
     def all():
-        return [str(Currency.USDT), str(Currency.USDC), str(Currency.RUB), str(Currency.BAT)]
+        return [str(Currency.USDT), str(Currency.USDC), str(Currency.RUB), str(Currency.THB)]
+
+    @staticmethod
+    def change():
+        return [str(Currency.THB)]
 
     @staticmethod
     def fiat():
@@ -23,7 +28,7 @@ class Currency(StrEnum):
 
     @staticmethod
     def non_stable():
-        return [Currency.BAT]
+        return [Currency.RUB]
 
 
 class TransStatus(enum.Enum):
@@ -49,8 +54,14 @@ class TransStatus(enum.Enum):
             TransStatus.canceled: _('Canceled')
         }.get(self)
 
-    def exchange(self):
-        return [self.in_exchange, self.wait_good_user]
+    @classmethod
+    def exchange(cls):
+        return [cls.in_exchange, cls.wait_good_user]
+
+    @classmethod
+    def end(cls):
+        return cls.canceled, cls.good_finished, cls.complain_by_user, cls.complain_by_merchant, \
+               cls.bad_finished_by_user, cls.bad_finished_by_merchant
 
 
 class TransGet(StrEnum):

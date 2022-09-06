@@ -1,28 +1,18 @@
-from sqlalchemy import select, update, or_
+from typing import Optional
 
 from bot.database import (
-    Transaction, RequisitesCash, RequisitesBankBalance, TransactionModerate,
+    Transaction, TransactionArchive, RequisitesCash, RequisitesBankBalance,
     TransGet, TransStatus, MessageTransaction)
 from .query_controller import QueryController
 
 
-# async def get_work_transactions(session: AsyncSession, user_id) -> Transaction:
-#     sql = select(Transaction).where(or_(Transaction.user_id == user_id)).where(
-#         or_(Transaction.status == TransStatus.in_stack,
-#             Transaction.status == TransStatus.in_exchange,
-#             Transaction.status == TransStatus.wait_good_user))
-#     query = await session.execute(sql)
-#
-#     user = query.all()
-#
-#     return user
 async def create_transaction(session: QueryController,
                              user_id,
                              have_currency, have_amount,
                              get_currency, get_amount,
                              rate,
                              commission_user, commission_merchant,
-                             get_thb_type, option1, option2, option3) -> Transaction:
+                             type_receive_thb, **kwargs) -> Transaction:
     transaction = Transaction(
         user_id = user_id,
         have_currency = have_currency,
@@ -30,151 +20,86 @@ async def create_transaction(session: QueryController,
         get_currency = get_currency,
         get_amount = get_amount,
         rate = rate,
-        # todo
+        commission_user = commission_user,
+        commission_merchant = commission_merchant,
+        get_thb_type = type_receive_thb,
     )
-    return await session(transaction).add_model()
+    await session(transaction).add_model()
+
+    if type_receive_thb == TransGet.bank_balance:
+        req = RequisitesBankBalance(
+            transaction_id = transaction.id,
+            bank_name = kwargs['bank_name'],
+            number = kwargs['bank_number'],
+            name = kwargs['bank_username']
+        )
+        await session(req).add_model()
+    elif type_receive_thb == TransGet.cash:
+        req = RequisitesCash(
+            transaction_id = transaction.id,
+            town = kwargs['cash_town'],
+            region = kwargs['cash_region']
+        )
+        await session(req).add_model()
+    return transaction
 
 
-async def get_transaction(session: QueryController, transaction_id: int) -> Transaction:
+async def get_transaction(session: QueryController, transaction_id: int) -> Optional[Transaction]:
     return await session(Transaction).get_model(transaction_id)
 
 
-async def get_work_transaction(session: QueryController, transaction_id: int) -> Transaction:
-    return await session(Transaction).get_model(transaction_id)
+async def get_work_transaction(session: QueryController, user_id: int, merchant: bool) -> list[Transaction]:
+    if merchant:
+        return await session(Transaction).get_models_filter({'merchant_id': user_id})
+    return await session(Transaction).get_models_filter({'user_id': user_id})
 
 
-#
-# async def create_pre_transaction(session: AsyncSession, data, user) -> TransactionModerate:
-#     trans = TransactionModerate(
-#         amount = data['amount'],
-#         have_currency = data['have_currency'],
-#         get_currency = data['get_currency'],
-#         rate = data['rate'],
-#         auth_user = user.auth
-#     )
-#
-#     trans.user_id = user.id
-#     trans.get_thb_type = data['type_get_thb']
-#     if trans.get_thb_type == TransGet.cash:
-#         trans.option1 = data['town']
-#         trans.option2 = data['region']
-#     elif trans.get_thb_type == TransGet.atm_machine:
-#         pass
-#     elif trans.get_thb_type == TransGet.bank_balance:
-#         trans.option1 = data['bank']
-#         trans.option2 = data['number']
-#         trans.option3 = data['name']
-#
-#     session.add(trans)
-#     await save_commit(session)
-#     return trans
-#
-#
-# async def get_transaction_moderate(session: AsyncSession, _id) -> TransactionModerate:
-#     sql = select(TransactionModerate).where(TransactionModerate.id == _id)
-#     query = await session.execute(sql)
-#
-#     user = query.scalar_one_or_none()
-#
-#     return user
-#
-#
-# async def create_transaction(transaction_moderate: TransactionModerate) -> Transaction:
-#     transaction: Transaction = Transaction(
-#         user_id = transaction_moderate.user_id,
-#         have_amount = transaction_moderate.have_amount,
-#         have_currency = transaction_moderate.have_currency,
-#         get_amount = transaction_moderate.get_amount,
-#         get_currency = transaction_moderate.get_currency,
-#         rate = transaction_moderate.rate,
-#         commission_user = transaction_moderate.commission_user,
-#         commission_merchant = transaction_moderate.commission_merchant,
-#         get_thb_type = transaction_moderate.get_thb_type,
-#     )
-#     return transaction
-#
-#
-# async def create_transaction_receive(transaction: Transaction,
-#                                      transaction_moderate: TransactionModerate) -> Transaction:
-#     if transaction.get_thb_type == TransGet.cash:
-#         return RequisitesCash(
-#             transaction_id = transaction.id,
-#             town = transaction_moderate.option1,
-#             region = transaction_moderate.option2
-#         )
-#     elif transaction.get_thb_type == TransGet.bank_balance:
-#         return RequisitesBankBalance(
-#             transaction_id = transaction.id,
-#             bank_name = transaction_moderate.option1,
-#             number = int(transaction_moderate.option2),
-#             name = transaction_moderate.option3,
-#         )
-#
-#
-# async def un_public_transaction(session: AsyncSession, transaction_moderate: TransactionModerate):
-#     await session.delete(transaction_moderate)
-#     await save_commit(session)
-#
-#
-# async def public_transaction_db(session: AsyncSession, transaction_moderate: TransactionModerate) -> Transaction:
-#     transaction = await create_transaction(transaction_moderate)
-#
-#     session.add(transaction)
-#     await save_commit(session)
-#
-#     receive = await create_transaction_receive(transaction, transaction_moderate)
-#     if receive:
-#         session.add(receive)
-#         await save_commit(session)
-#
-#     await session.delete(transaction_moderate)
-#     await save_commit(session)
-#
-#     return transaction
-#
-#
-# async def transaction_set_merchant_message(session: AsyncSession, transaction: Transaction, _id) -> Transaction:
-#     sql = update(Transaction).where(Transaction.id == transaction.id).values(merchant_message_id = _id)
-#     await session.execute(sql)
-#
-#     await save_commit(session)
-#     return transaction
-#
-#
-# async def update_status_transaction(session: AsyncSession, transaction: Transaction,
-#                                     status: TransStatus) -> Transaction:
-#     sql = update(Transaction).where(Transaction.id == transaction.id).values(status = status)
-#     await session.execute(sql)
-#
-#     await save_commit(session)
-#     return transaction
-#
-#
-# async def update_value_transaction(session: AsyncSession, transaction: Transaction,
-#                                    status: TransStatus) -> Transaction:
-#     sql = update(Transaction).where(Transaction.id == transaction.id).values(status = status)
-#     await session.execute(sql)
-#
-#     await save_commit(session)
-#     return transaction
-#
-#
-# async def get_transaction_place_line(session: AsyncSession, transaction: Transaction):
-#     position = 0
-#     sql = select(Transaction).filter(Transaction.have_currency == transaction.have_currency).filter(
-#         Transaction.get_currency == transaction.get_currency).filter(
-#         or_(Transaction.status == TransStatus.in_stack,
-#             Transaction.status == TransStatus.in_exchange))
-#     all_models = await session.execute(sql)
-#
-#     for trans in all_models:
-#         position += 1
-#         if trans.id == transaction.id:
-#             return position
-#
-#
-# async def create_message(session: AsyncSession, transaction: Transaction, text, from_merchant) -> MessageTransaction:
-#     message = MessageTransaction(text = text, transaction_id = transaction.id, from_merchant = from_merchant)
-#     session.add(message)
-#
-#     save_commit(session)
+async def update_transaction(session: QueryController, transaction: Transaction, data: dict) -> Transaction:
+    await session(transaction).update_model_values(data)
+    return transaction
+
+
+async def create_message(session: QueryController, transaction_id: int, text: str,
+                         from_merchant: bool) -> MessageTransaction:
+    message = MessageTransaction(
+        transaction_id = transaction_id,
+        text = text,
+        from_merchant = from_merchant
+    )
+    await session(message).add_model()
+    return message
+
+
+async def get_messages(session: QueryController, transaction_id: int) -> list[MessageTransaction]:
+    return await session(MessageTransaction).get_models_filter({'transaction_id': transaction_id})
+
+
+async def finish_transaction(session: QueryController, transaction: Transaction,
+                             finish_status: TransStatus) -> TransactionArchive:
+    if finish_status not in TransStatus.end():
+        raise Exception('Cant finish transaction')  # todo exception
+
+    archive_transaction = TransactionArchive()
+    archive_transaction.user_id = transaction.user_id
+    archive_transaction.merchant_id = transaction.merchant_id
+    archive_transaction.end_status = finish_status
+    archive_transaction.have_amount = transaction.have_amount
+    archive_transaction.have_currency = transaction.have_currency
+    archive_transaction.get_amount = transaction.get_amount
+    archive_transaction.get_currency = transaction.get_currency
+    archive_transaction.rate = transaction.rate
+    archive_transaction.commission_user = transaction.commission_user
+    archive_transaction.commission_merchant = transaction.commission_merchant
+    archive_transaction.get_thb_type = transaction.get_thb_type
+
+    await session(archive_transaction).add_model()
+
+    if transaction.get_thb_type == TransGet.bank_balance:
+        transaction.req_bank.transaction_archive_id = archive_transaction.id
+        transaction.req_bank.transaction_id = None
+    elif transaction.get_thb_type == TransGet.cash:
+        transaction.req_cash.transaction_archive_id = archive_transaction.id
+        transaction.req_cash.transaction_id = None
+
+    await session(transaction).delete_model()
+    return archive_transaction

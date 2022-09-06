@@ -5,11 +5,13 @@ from .base import BaseModelWithId
 from .transaction_const import *
 
 
-class Transaction(BaseModelWithId):
-    __tablename__ = 'transactions'
+class TransactionArchive(BaseModelWithId):
+    __tablename__ = 'transactions_archive'
 
     user_id = Column(ForeignKey('users.id'), nullable = False)
     merchant_id = Column(ForeignKey('merchants.id'))
+
+    end_status = Column(Enum(TransStatus), nullable = False)
 
     have_amount = Column(Float, nullable = False)
     have_currency = Column(Enum(Currency), nullable = False)
@@ -19,9 +21,6 @@ class Transaction(BaseModelWithId):
 
     commission_user = Column(Float, nullable = False)
     commission_merchant = Column(Float, nullable = False)
-
-    status = Column(Enum(TransStatus), default = TransStatus.in_stack)
-    merchant_message_id = Column(Integer)
 
     get_thb_type = Column(Enum(TransGet), nullable = False)
     req_cash = relationship('RequisitesCash', backref = 'transactions', uselist = False)
@@ -55,7 +54,6 @@ class Transaction(BaseModelWithId):
             'rate': self.rate,
             'commission_user': self.commission_user,
             'commission_merchant': self.commission_merchant,
-            'status': self.status,
             'merchant_message_id': self.merchant_message_id,
             'get_thb_type': self.get_thb_type
         })

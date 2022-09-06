@@ -17,6 +17,8 @@ class Settings(BaseSettings):
 
     admins: List[int]
     merchants: List[int]
+    merchant_commission: float
+    merchant_channel: int
 
     max_user_transaction: int
 

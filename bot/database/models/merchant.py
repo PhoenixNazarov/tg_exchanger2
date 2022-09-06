@@ -7,6 +7,7 @@ class Merchant(BaseModel):
     __tablename__ = 'merchants'
 
     id = Column(ForeignKey('users.id'), nullable = False, unique = True, primary_key = True)
+    actual = Column(Boolean, default = True)
 
     accumulated_commission = relationship('MerchantCommission', backref = 'Merchant', lazy = 'selectin', uselist=False)
 

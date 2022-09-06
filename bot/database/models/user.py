@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, BigInteger, Text, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
@@ -6,7 +6,7 @@ from .base import BaseModel
 class User(BaseModel):
     __tablename__ = 'users'
 
-    id = Column(Integer, nullable = False, unique = True, primary_key = True)
+    id = Column(BigInteger, nullable = False, unique = True, primary_key = True)
 
     language = Column(Text, nullable = False)
     username = Column(Text, nullable = False, unique = True)
