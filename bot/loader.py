@@ -5,7 +5,6 @@ from aiogram.fsm.storage.redis import RedisStorage
 
 from bot.config_reader import config
 
-from bot import handlers, middlewares
 from bot.database.make_connect import create_db_session
 
 bot = Bot(config.bot_token.get_secret_value(), parse_mode = "HTML")
@@ -17,6 +16,9 @@ if config.fsm_mode == "redis" and not config.test:
     )
 else:
     storage = MemoryStorage()
+
+
+from bot import handlers, middlewares
 
 # HANDLERS
 dp = Dispatcher(storage = storage)

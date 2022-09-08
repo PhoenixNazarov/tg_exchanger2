@@ -5,7 +5,7 @@ from .base import BaseModel
 class MerchantCommission(BaseModel):
     __tablename__ = 'merchants_commission'
 
-    id = Column(ForeignKey('merchants.id'), nullable = False, unique = True, primary_key = True)
+    id = Column(ForeignKey('merchants.id', ondelete='CASCADE'), nullable = False, unique = True, primary_key = True)
 
     usd = Column(Float, default = 0.0)
     thb = Column(Float, default = 0.0)

@@ -1,6 +1,5 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.filters import Command
-from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
@@ -9,24 +8,13 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton, 
 
 from bot.database.models import Transaction, TransStatus
 from bot.info import _
-from bot.messages.transactions import text_transaction
+from bot.messages.transactions import text_transaction, ControlTransMerch, ControlTransUser
 from bot.services.bot_query import BotQueryController
 
 router = Router()
 
 
-class ControlTransMerch(CallbackData, prefix = "my_trans_user"):
-    id_transaction: int
-
-    main: int = 0
-
-    message: int = 0  # 1-write, 2-history
-    accept: int = 0  # 1-proof, 2-accept
-
-    complain: int = 0  # 1-proof, 2-complain
-
-
-class SmsTrans(StatesGroup):
+class SmsTransMerch(StatesGroup):
     text = State()
 
 
@@ -65,16 +53,15 @@ def get_main_keyboard(transaction: Transaction) -> KeyboardBuilder[InlineKeyboar
 
 async def send_transaction(message: Message, transaction: Transaction):
     await message.answer(
-        text = text_transaction(transaction, merchant = True),
+        text = text_transaction(await transaction.to_json(), merchant = True),
         reply_markup = get_main_keyboard(transaction).as_markup()
     )
 
 
-@router.message(Command(commands = '/mytrans'))
+@router.message(Command(commands = 'mytrans'))
 async def get_transactions(message: Message, bot_query: BotQueryController):
     transactions = await bot_query.get_exchange_transactions()
-    for trans in transactions:
-        await send_transaction(message, trans)
+    return [await send_transaction(message, trans) for trans in transactions]
 
 
 @router.callback_query(ControlTransMerch.filter(F.main == 1))
@@ -82,7 +69,7 @@ async def get_transaction(callback_query: CallbackQuery, callback_data: ControlT
                           bot_query: BotQueryController):
     transaction = await bot_query.get_transaction(callback_data.id_transaction)
     await callback_query.message.edit_text(
-        text = text_transaction(transaction, merchant = True),
+        text = text_transaction(await transaction.to_json(), merchant = True),
         reply_markup = get_main_keyboard(transaction).as_markup()
     )
 
@@ -92,25 +79,38 @@ async def write_message(callback_query: CallbackQuery, callback_data: ControlTra
                         state: FSMContext):
     transaction = await bot_query.get_transaction(callback_data.id_transaction)
 
-    await bot_query.user_cancel_transaction(transaction)
-    await state.set_state(SmsTrans.text)
+    await state.set_state(SmsTransMerch.text)
     await state.update_data(id_transaction = callback_data.id_transaction)
-    await callback_query.message.edit_text(
-        text = text_transaction(transaction, merchant = True, desc = _("Write your messages"), small = True),
-        reply_markup = ReplyKeyboardBuilder().row(KeyboardButton(text = _('ℹ Back'))).as_markup()
+    await callback_query.message.delete()
+    await callback_query.message.answer(
+        text = text_transaction(await transaction.to_json(), desc = _("Write your messages"), merchant = True,
+                                small = True),
+        reply_markup = ReplyKeyboardBuilder().row(KeyboardButton(text = _('ℹ Back'))).as_markup(resize_keyboard = True)
     )
 
 
-@router.message(SmsTrans.text)
-async def get_message(message: Message, bot_query: BotQueryController, state: FSMContext):
-    transaction = await bot_query.get_transaction((await state.get_data())['transaction_id'])
+@router.message(SmsTransMerch.text)
+async def get_message(message: Message, bot_query: BotQueryController, state: FSMContext, bot: Bot):
+    transaction: Transaction = await bot_query.get_transaction((await state.get_data())['id_transaction'])
 
     if message.text == _('ℹ Back'):
         await state.clear()
         return await send_transaction(message, transaction)
 
-    await bot_query.send_sms_transaction(transaction, message.text)
-    # todo send user
+    message = await bot_query.send_sms_transaction(transaction, message.text)
+    await bot.send_message(
+        chat_id = transaction.user_id,
+        text = text_transaction(await transaction.to_json(), desc = _('New message\n {text}').format(text = message.text),
+                                small = True),
+        reply_markup = InlineKeyboardBuilder()
+        .row(
+            InlineKeyboardButton(text = '✉️ Answer',
+                                 callback_data = ControlTransUser(id_transaction = transaction.id, message = 1).pack()))
+        .row(
+            InlineKeyboardButton(text = 'ℹ Transaction',
+                                 callback_data = ControlTransUser(id_transaction = transaction.id, main = 1).pack()))
+        .as_markup()
+    )
 
 
 @router.callback_query(ControlTransMerch.filter(F.message == 2))
@@ -119,9 +119,12 @@ async def history_messages(callback_query: CallbackQuery, callback_data: Control
     transaction = await bot_query.get_transaction(callback_data.id_transaction)
     messages = await bot_query.get_sms_history_transaction(transaction)
 
-    text = ''  # todo text
+    text = '\n'.join(
+        [_('Merchant: {text}').format(text = i.text) if i.from_merchant else _('Maker: {text}').format(text = i.text)
+         for i in messages])
     await callback_query.message.edit_text(
-        text = text_transaction(transaction, merchant = True, desc = _("Messages: "), small = True),
+        text = text_transaction(await transaction.to_json(), merchant = True, desc = _("Message history:\n{messages}")
+                                .format(messages = text), small = True),
         reply_markup = InlineKeyboardBuilder().row(
             InlineKeyboardButton(text = _('ℹ Back'),
                                  callback_data = ControlTransMerch(id_transaction = transaction.id, main = 1).pack())
@@ -134,7 +137,8 @@ async def accept(callback_query: CallbackQuery, callback_data: ControlTransMerch
     transaction = await bot_query.get_transaction(callback_data.id_transaction)
 
     await callback_query.message.edit_text(
-        text = text_transaction(transaction, merchant = True, desc = _("Do you want accept transaction?")),
+        text = text_transaction(await transaction.to_json(), merchant = True,
+                                desc = _("Do you want accept transaction?")),
         reply_markup = InlineKeyboardBuilder().row(
             InlineKeyboardButton(
                 text = _('✅ Yes'),
@@ -148,12 +152,27 @@ async def accept(callback_query: CallbackQuery, callback_data: ControlTransMerch
 
 
 @router.callback_query(ControlTransMerch.filter(F.accept == 2))
-async def accept_proof(callback_query: CallbackQuery, callback_data: ControlTransMerch,
-                       bot_query: BotQueryController):
+async def accept_proof(callback_query: CallbackQuery, callback_data: ControlTransMerch, bot_query: BotQueryController,
+                       bot: Bot):
     transaction = await bot_query.get_transaction(callback_data.id_transaction)
+    transaction = await bot_query.merchant_get_transaction_money(transaction)
 
-    await bot_query.merchant_get_transaction_money(transaction)
     await get_transaction(callback_query, callback_data, bot_query)
+
+    await bot.send_message(
+        chat_id = transaction.user_id,
+        text = text_transaction(await transaction.to_json(), desc = _('Merchant confirmed transfer')),
+        reply_markup = InlineKeyboardBuilder()
+        .row(
+            InlineKeyboardButton(text = '✅ Accept',
+                                 callback_data = ControlTransUser(id_transaction = transaction.id, accept = 1).pack()))
+        .row(
+            InlineKeyboardButton(text = 'ℹ Transaction',
+                                 callback_data = ControlTransUser(id_transaction = transaction.id, main = 1).pack()))
+        .as_markup()
+    )
+
+    return transaction
 
 
 @router.callback_query(ControlTransMerch.filter(F.complain == 1))

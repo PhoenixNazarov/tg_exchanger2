@@ -1,7 +1,7 @@
 from typing import Optional
 
 from bot.database import (
-    Transaction, TransactionArchive, RequisitesCash, RequisitesBankBalance,
+    Transaction, RequisitesCash, RequisitesBankBalance,
     TransGet, TransStatus, MessageTransaction)
 from .query_controller import QueryController
 
@@ -50,8 +50,8 @@ async def get_transaction(session: QueryController, transaction_id: int) -> Opti
 
 async def get_work_transaction(session: QueryController, user_id: int, merchant: bool) -> list[Transaction]:
     if merchant:
-        return await session(Transaction).get_models_filter({'merchant_id': user_id})
-    return await session(Transaction).get_models_filter({'user_id': user_id})
+        return await session(Transaction).get_models_filter({'merchant_id': user_id, 'active': True})
+    return await session(Transaction).get_models_filter({'user_id': user_id, 'active': True})
 
 
 async def update_transaction(session: QueryController, transaction: Transaction, data: dict) -> Transaction:
@@ -75,31 +75,12 @@ async def get_messages(session: QueryController, transaction_id: int) -> list[Me
 
 
 async def finish_transaction(session: QueryController, transaction: Transaction,
-                             finish_status: TransStatus) -> TransactionArchive:
+                             finish_status: TransStatus) -> Transaction:
     if finish_status not in TransStatus.end():
+
         raise Exception('Cant finish transaction')  # todo exception
-
-    archive_transaction = TransactionArchive()
-    archive_transaction.user_id = transaction.user_id
-    archive_transaction.merchant_id = transaction.merchant_id
-    archive_transaction.end_status = finish_status
-    archive_transaction.have_amount = transaction.have_amount
-    archive_transaction.have_currency = transaction.have_currency
-    archive_transaction.get_amount = transaction.get_amount
-    archive_transaction.get_currency = transaction.get_currency
-    archive_transaction.rate = transaction.rate
-    archive_transaction.commission_user = transaction.commission_user
-    archive_transaction.commission_merchant = transaction.commission_merchant
-    archive_transaction.get_thb_type = transaction.get_thb_type
-
-    await session(archive_transaction).add_model()
-
-    if transaction.get_thb_type == TransGet.bank_balance:
-        transaction.req_bank.transaction_archive_id = archive_transaction.id
-        transaction.req_bank.transaction_id = None
-    elif transaction.get_thb_type == TransGet.cash:
-        transaction.req_cash.transaction_archive_id = archive_transaction.id
-        transaction.req_cash.transaction_id = None
-
-    await session(transaction).delete_model()
-    return archive_transaction
+    await session(transaction).update_model_values({
+        'status': finish_status,
+        'active': False
+    })
+    return transaction

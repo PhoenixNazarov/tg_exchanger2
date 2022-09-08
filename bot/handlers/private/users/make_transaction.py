@@ -8,11 +8,10 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from bot import info
 from bot.config_reader import config
 from bot.database import Currency, TransGet
-from bot.handlers.channel.transaction_actions import TransactionCallback
 from bot.info import _  # todo delete
-from bot.loader import bot
 from bot.messages.transactions import text_transaction
 from bot.services.bot_query import BotQueryController
+from bot.messages.transactions import TransactionChannel
 
 router = Router()
 
@@ -26,7 +25,10 @@ def correct_number(number: str):
             out = number * 100 == int(number * 100) or number * 10 == int(number * 10)
     except ValueError:
         out = False
-    return out
+
+    if out:
+        return number
+    return False
 
 
 def correct_phone(number: str):
@@ -228,20 +230,23 @@ async def cancel(message: Message, state: FSMContext):
 
 
 @router.message(TransactionForm.public, F.text == 'Public')
-async def public(message: Message, state: FSMContext, bot_query: BotQueryController):
+async def public(message: Message, state: FSMContext, bot_query: BotQueryController, bot):
     transaction = await bot_query.public_transaction(await state.get_data())
-    await message.answer(text = text_transaction(await transaction.to_json()), reply_markup = ReplyKeyboardRemove())
-    message = await bot.send_message(
+    user_message = await message.answer(text = text_transaction(await transaction.to_json()),
+                                        reply_markup = ReplyKeyboardRemove())
+    _message = await bot.send_message(
         chat_id = config.merchant_channel,
         text = text_transaction(await transaction.to_json(), True),
         reply_markup = InlineKeyboardBuilder().add(
-            InlineKeyboardButton(text = _('Take'), callback_data = TransactionCallback(
+            InlineKeyboardButton(text = _('Take'), callback_data = TransactionChannel(
                 id_transaction = transaction.id,
                 take_transaction = 1,
                 complain_transaction = 0).pack()),
-            InlineKeyboardButton(text = _('Complain'), callback_data = TransactionCallback(
+            InlineKeyboardButton(text = _('Complain'), callback_data = TransactionChannel(
                 id_transaction = transaction.id,
                 take_transaction = 0,
-                complain_transaction = 1).pack()),
-        ))
-    await bot_query.set_channel_message_transaction(transaction, message.message_id)
+                complain_transaction = 1).pack())
+        ).as_markup())
+    await bot_query.set_channel_message_transaction(transaction, _message.message_id)
+
+    return transaction.id, _message, user_message

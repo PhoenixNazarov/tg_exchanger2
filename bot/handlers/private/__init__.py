@@ -1,6 +1,6 @@
 from aiogram import Router, F
 
-from . import users, admins, language
+from . import users, admins, merchants, language
 
 router = Router()
 
@@ -9,4 +9,5 @@ router.callback_query.filter(F.message.chat.type == 'private')
 
 router.include_router(language.router)
 router.include_router(admins.router)
+router.include_router(merchants.router)
 router.include_router(users.router)

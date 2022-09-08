@@ -32,7 +32,7 @@ class PeopleRoleFilter(BaseFilter):
         if isinstance(update, Message):
             user_id = update.from_user.id
         elif isinstance(update, CallbackQuery):
-            user_id = update.message.from_user.id
+            user_id = update.from_user.id
         else:
             raise Exception()  # todo
 

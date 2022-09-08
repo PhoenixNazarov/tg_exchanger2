@@ -6,7 +6,7 @@ import pytest_asyncio
 from aiogram import Bot, Dispatcher, F
 from aiogram.fsm.storage.memory import MemoryStorage
 from bot.database.make_connect import create_db_session
-from bot import handlers, middlewares
+from bot import middlewares
 
 
 @pytest_asyncio.fixture(scope="session")

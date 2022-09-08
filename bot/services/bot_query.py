@@ -3,7 +3,7 @@ from typing import Optional
 from aiogram.types import User
 
 from bot.config_reader import config
-from bot.database.models import Transaction, Currency, TransStatus
+from bot.database.models import Transaction, Currency, TransStatus, MessageTransaction
 from bot.database.models import User as UserModel
 from bot.utils.calculate_amount import calculate_get_amount
 from . import users, transactions, merchants
@@ -16,6 +16,8 @@ class BotQueryController:
 
         self._user_tg: Optional[User] = None
         self._user: Optional[UserModel] = None
+
+        self._work_transactions: Optional[list[Transaction]] = None
 
     # Users
     async def get_other_user(self, user_id: int):
@@ -56,10 +58,10 @@ class BotQueryController:
 
     # Merchants
     def is_merchant(self) -> bool:
-        return self._user.id in config.merchants
+        return self._user_tg.id in config.merchants
 
     def is_admin(self) -> bool:
-        return self._user.id in config.admins
+        return self._user_tg.id in config.admins
 
     async def add_merchant(self, user_id: int):
         if not self.is_admin():
@@ -75,7 +77,7 @@ class BotQueryController:
     async def create_transaction(self, data):
         if self.is_merchant():
             raise Exception('Merchant cant make transaction')  # todo exception
-        if len(self._user.transactions) >= config.max_user_transaction:
+        if len(await self.get_exchange_transactions()) >= config.max_user_transaction:
             raise Exception('You have limit count of your transaction')  # todo exception
 
         out = {
@@ -91,7 +93,7 @@ class BotQueryController:
     async def public_transaction(self, data: dict) -> Transaction:
         if self.is_merchant():
             raise Exception('Merchant cant make transaction')  # todo exception
-        if len(self._user.transactions) >= config.max_user_transaction:
+        if len(await self.get_exchange_transactions()) >= config.max_user_transaction:
             raise Exception('You have limit count of your transaction')  # todo exception
 
         return await transactions.create_transaction(
@@ -104,16 +106,24 @@ class BotQueryController:
         return await transactions.update_transaction(self._query_controller, transaction,
                                                      {'merchant_message_id': message_id})
 
-    async def get_transaction(self, transaction_id: id) -> Optional[Transaction]:
+    async def get_transaction(self, transaction_id: int) -> Transaction:
         transaction = await transactions.get_transaction(self._query_controller, transaction_id)
-        if (self.is_merchant() and transaction.merchant_id == self._user.id) or (transaction.user_id == self._user.id):
+        if self.is_merchant() and transaction.merchant_id is None:
             return transaction
+        if (self.is_merchant() and (transaction.merchant_id == self._user.id)) or (
+                transaction.user_id == self._user.id):
+            return transaction
+        raise Exception('You can not get this transaction')
 
     async def get_exchange_transactions(self) -> list[Transaction]:
-        return await transactions.get_work_transaction(self._query_controller, self._user.id, self.is_merchant())
+        if self._work_transactions:
+            return self._work_transactions
+        self._work_transactions = await transactions.get_work_transaction(self._query_controller, self._user.id,
+                                                                          self.is_merchant())
+        return self._work_transactions
 
     async def merchant_take_transaction(self, transaction: Transaction):
-        if self.is_merchant():
+        if not self.is_merchant():
             raise Exception('You is not merchant')  # todo exception
         if transaction.status != TransStatus.in_stack:
             raise Exception('Cant take this transaction')  # todo exception
@@ -121,11 +131,14 @@ class BotQueryController:
             else transaction.have_amount
         if self._user.merchant.allow_max_amount < thb_amount:
             raise Exception('Too much amount for you')  # todo exception
-        if len(self._user.merchant.transactions) > 3:  # todo const
+        if len(await self.get_exchange_transactions()) > 3:  # todo const
             raise Exception('You have too much transactions')  # todo exception
 
         transaction.merchant_id = self._user.id
         transaction.status = TransStatus.in_exchange
+        await transactions.update_transaction(self._query_controller, transaction,
+                                              {'status': TransStatus.in_exchange, 'merchant_id': self._user.id})
+
         return transaction
 
     async def merchant_get_transaction_money(self, transaction: Transaction):
@@ -134,16 +147,18 @@ class BotQueryController:
         if transaction.status != TransStatus.in_exchange:
             raise Exception('Cant accept money for this transaction')  # todo exception
         transaction.status = TransStatus.wait_good_user
+        await transactions.update_transaction(self._query_controller, transaction,
+                                              {'status': TransStatus.wait_good_user})
         return transaction
 
-    async def user_get_transaction_money(self, transaction):
+    async def user_get_transaction_money(self, transaction) -> Transaction:
         if transaction.user_id != self._user.id:
             raise Exception('You is not maker of this transaction')  # todo exception
         if transaction.status != TransStatus.wait_good_user:
             raise Exception('Cant accept money for this transaction')  # todo exception
         return await transactions.finish_transaction(self._query_controller, transaction, TransStatus.good_finished)
 
-    async def user_cancel_transaction(self, transaction):
+    async def user_cancel_transaction(self, transaction) -> Transaction:
         if transaction.user_id != self._user.id:
             raise Exception('You is not maker of this transaction')  # todo exception
         if transaction.status not in [TransStatus.in_stack, TransStatus.in_exchange]:
@@ -198,8 +213,8 @@ class BotQueryController:
         else:
             raise Exception('Unknown key')  # todo exception
 
-    async def send_sms_transaction(self, transaction, text: str):
-        if transaction.merchant_id != self._user.id or transaction.user_id != self._user.id:
+    async def send_sms_transaction(self, transaction, text: str) -> MessageTransaction:
+        if transaction.merchant_id != self._user.id and transaction.user_id != self._user.id:
             raise Exception('You is not merchant or maker of this transaction')  # todo exception
         if transaction.status not in TransStatus.exchange():
             raise Exception('You can not write message for this transaction')  # todo exception
@@ -207,7 +222,7 @@ class BotQueryController:
                                                  transaction.merchant_id != self._user.id)
 
     async def get_sms_history_transaction(self, transaction):
-        if transaction.merchant_id != self._user.id or transaction.user_id != self._user.id:
+        if transaction.merchant_id != self._user.id and transaction.user_id != self._user.id:
             raise Exception('You is not merchant or maker of this transaction')  # todo exception
         if transaction.status not in TransStatus.exchange():
             raise Exception('You can not write message for this transaction')  # todo exception

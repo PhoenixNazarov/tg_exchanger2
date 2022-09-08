@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Float, ForeignKey, Enum, Integer
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Float, ForeignKey, Enum, Integer, Boolean
+from sqlalchemy.orm import relationship, backref
 
 from .base import BaseModelWithId
 from .transaction_const import *
@@ -20,6 +20,7 @@ class Transaction(BaseModelWithId):
     commission_user = Column(Float, nullable = False)
     commission_merchant = Column(Float, nullable = False)
 
+    active = Column(Boolean, default = True)
     status = Column(Enum(TransStatus), default = TransStatus.in_stack)
     merchant_message_id = Column(Integer)
 
@@ -27,7 +28,7 @@ class Transaction(BaseModelWithId):
     req_cash = relationship('RequisitesCash', backref = 'transactions', uselist = False)
     req_bank = relationship('RequisitesBankBalance', backref = 'transactions', uselist = False)
 
-    messages = relationship('MessageTransaction', backref = 'transactions')
+    messages = relationship('MessageTransaction', backref = backref('transactions', passive_deletes=True))
 
     maker = relationship('User', backref = 'Transaction', uselist = False, viewonly = True)
     merchant = relationship('Merchant', backref = 'Transaction', uselist = False, viewonly = True)
@@ -46,7 +47,9 @@ class Transaction(BaseModelWithId):
                 'bank_username': self.req_bank.name
             }
         out.update({
+            'id': self.id,
             'user_id': self.user_id,
+            'active': self.active,
             'merchant_id': self.merchant_id,
             'have_amount': self.have_amount,
             'have_currency': self.have_currency,
