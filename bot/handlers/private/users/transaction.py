@@ -33,6 +33,22 @@ def get_main_keyboard(transaction: Transaction) -> KeyboardBuilder[InlineKeyboar
                 text = _('❌ Cancel'),
                 callback_data = ControlTransUser(id_transaction = transaction.id, cancel = 1).pack())
         )
+    elif transaction.complain:
+        button = InlineKeyboardBuilder().row(
+            InlineKeyboardButton(
+                text = _('📩 Write a message'),
+                callback_data = ControlTransUser(id_transaction = transaction.id, message = 1).pack()),
+            InlineKeyboardButton(
+                text = _('✉️ Message history'),
+                callback_data = ControlTransUser(id_transaction = transaction.id, message = 2).pack()),
+        )
+        if not transaction.complain.merchant_complain:
+            button.row(
+                InlineKeyboardButton(
+                    text = _('⛔ Un complain'),
+                    callback_data = ControlTransUser(id_transaction = transaction.id, complain = -1).pack())
+            )
+        return button
     elif transaction.status == TransStatus.in_exchange:
         return InlineKeyboardBuilder().row(
             InlineKeyboardButton(
@@ -243,7 +259,8 @@ async def get_message(message: Message, bot_query: BotQueryController, state: FS
         reply_markup = InlineKeyboardBuilder()
         .row(
             InlineKeyboardButton(text = '✉️ Answer',
-                                 callback_data = ControlTransMerch(id_transaction = transaction.id, message = 1).pack()))
+                                 callback_data = ControlTransMerch(id_transaction = transaction.id,
+                                                                   message = 1).pack()))
         .row(
             InlineKeyboardButton(text = 'ℹ Transaction',
                                  callback_data = ControlTransMerch(id_transaction = transaction.id, main = 1).pack()))
@@ -312,10 +329,47 @@ async def accept_proof(callback_query: CallbackQuery, callback_data: ControlTran
 @router.callback_query(ControlTransUser.filter(F.complain == 1))
 async def complain_list(callback_query: CallbackQuery, callback_data: ControlTransUser,
                         bot_query: BotQueryController):
-    # todo
-    return
-    #
-    # transaction = await bot_query.get_transaction(callback_data.id_transaction)
-    #
-    # await bot_query.user_get_transaction_money(transaction)
-    # await get_transaction(callback_query, callback_data, bot_query)
+    transaction = await bot_query.get_transaction(callback_data.id_transaction)
+
+    await callback_query.message.edit_text(
+        text = text_transaction(await transaction.to_json(), desc = _("Do you want complain transaction?")),
+        reply_markup = InlineKeyboardBuilder().row(
+            InlineKeyboardButton(
+                text = _('✅ Yes'),
+                callback_data = ControlTransUser(id_transaction = transaction.id, complain = 2).pack())
+        ).row(
+            InlineKeyboardButton(
+                text = _('❌ No'),
+                callback_data = ControlTransUser(id_transaction = transaction.id, main = 1).pack())
+        ).as_markup()
+    )
+
+
+@router.callback_query(ControlTransUser.filter(F.complain == 2))
+async def complain_proof(callback_query: CallbackQuery, callback_data: ControlTransUser,
+                         bot_query: BotQueryController):
+    transaction = await bot_query.get_transaction(callback_data.id_transaction)
+    await bot_query.complain_transaction(transaction, 'other')
+
+    await callback_query.message.edit_text(
+        text = text_transaction(await transaction.to_json(), desc = _("What do you want edit?")),
+        reply_markup = get_main_keyboard(transaction).as_markup()
+    )
+
+    # todo notif merchant
+    return 'complain'
+
+
+@router.callback_query(ControlTransUser.filter(F.complain == -1))
+async def complain_proof(callback_query: CallbackQuery, callback_data: ControlTransUser,
+                         bot_query: BotQueryController):
+    transaction = await bot_query.get_transaction(callback_data.id_transaction)
+    await bot_query.un_complain_transaction(transaction)
+
+    await callback_query.message.edit_text(
+        text = text_transaction(await transaction.to_json()),
+        reply_markup = get_main_keyboard(transaction).as_markup()
+    )
+
+    # todo notif merchant
+    return 'complain'

@@ -1,4 +1,4 @@
-def _(a): return a
+def _(a, locale=None): return a
 
 TOWNS = {
     "Phuket": ["Rawai", "Chalong", "Karta", "Karon", "Patong", "Kamala", "Surin", "Bangtao", "Laguna", "Katu"],

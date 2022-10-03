@@ -40,6 +40,9 @@ def text_transaction(transaction: dict, merchant: bool = False, desc: str = '', 
     if 'id' in transaction:
         text = _('Transaction #{id}\n').format(**transaction)
 
+    if 'complain' in transaction:
+        text += _('\nComplained ⛔️\n')
+
     if desc:
         text += '🪧 ' + desc + '\n\n'
 

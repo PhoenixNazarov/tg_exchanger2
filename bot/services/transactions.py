@@ -2,7 +2,7 @@ from typing import Optional
 
 from bot.database import (
     Transaction, RequisitesCash, RequisitesBankBalance,
-    TransGet, TransStatus, MessageTransaction)
+    TransGet, TransStatus, MessageTransaction, TransactionComplain)
 from .query_controller import QueryController
 
 
@@ -84,3 +84,18 @@ async def finish_transaction(session: QueryController, transaction: Transaction,
         'active': False
     })
     return transaction
+
+
+async def create_complain(session: QueryController, transaction: Transaction, is_merchant: bool, cause: str):
+    complain = TransactionComplain(merchant_complain=is_merchant, cause = cause)
+    await session(complain).add_model()
+    await session(transaction).update_model_values({
+        'complain_id': complain.id,
+    })
+
+
+async def delete_complain(session: QueryController, transaction: Transaction):
+    await session(transaction.complain).delete_model()
+    await session(transaction).update_model_values({
+        'complain_id': 0,
+    })

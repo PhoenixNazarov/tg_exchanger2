@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, StateFilter, or_f
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -19,7 +19,7 @@ class Authorized(StatesGroup):
 
 
 @router.message(or_f(CommandStart(), StateFilter(state = Authorized.get_username)))
-async def send_pre_welcome(message: Message, state: FSMContext, bot_query: BotQueryController):
+async def send_pre_welcome(message: Message, state: FSMContext, bot_query: BotQueryController, bot: Bot):
     if message.from_user.username is None:
         await message.answer(text =
                              _('Hi.\n\nYour username is not specified. We cannot authenticate you.\nAdd username and '
@@ -31,13 +31,13 @@ async def send_pre_welcome(message: Message, state: FSMContext, bot_query: BotQu
     elif bot_query.get_user().phone is None:
         return await send_contact(message, state)
     else:
-        return await welcome(message, state)
+        return await welcome(message, state, bot_query, bot)
 
 
 @router.message(((F.content_type == 'contact') & ~(F.phone is None)), StateFilter(state = Authorized.get_phone))
-async def send_welcome_final(message: Message, state: FSMContext, bot_query: BotQueryController):
+async def send_welcome_final(message: Message, state: FSMContext, bot_query: BotQueryController, bot: Bot):
     await bot_query.set_phone(message.contact.phone_number)
-    await welcome(message, state)
+    await welcome(message, state, bot_query, bot)
 
 
 @router.message(StateFilter(state = Authorized.get_phone))

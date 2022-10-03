@@ -10,6 +10,7 @@ class Transaction(BaseModelWithId):
 
     user_id = Column(ForeignKey('users.id'), nullable = False)
     merchant_id = Column(ForeignKey('merchants.id'))
+    complain_id = Column(ForeignKey('transaction_complain.id'))
 
     have_amount = Column(Float, nullable = False)
     have_currency = Column(Enum(Currency), nullable = False)
@@ -30,8 +31,9 @@ class Transaction(BaseModelWithId):
 
     messages = relationship('MessageTransaction', backref = backref('transactions', passive_deletes=True))
 
-    maker = relationship('User', backref = 'Transaction', uselist = False, viewonly = True)
-    merchant = relationship('Merchant', backref = 'Transaction', uselist = False, viewonly = True)
+    maker = relationship('User', back_populates = 'transactions', uselist = False, viewonly = True)
+    merchant = relationship('Merchant', back_populates = 'transactions', uselist = False, viewonly = True)
+    complain = relationship('TransactionComplain', back_populates = 'transaction', uselist = False)
 
     async def to_json(self):
         out = {}
@@ -46,6 +48,12 @@ class Transaction(BaseModelWithId):
                 'bank_number': self.req_bank.number,
                 'bank_username': self.req_bank.name
             }
+
+        if self.complain:
+            out.update({
+                'complain': await self.complain.json()
+            })
+
         out.update({
             'id': self.id,
             'user_id': self.user_id,

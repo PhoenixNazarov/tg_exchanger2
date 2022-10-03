@@ -213,7 +213,8 @@ async def test_send_message(dp, bot, new_trans, setup_user_merchant_trans, merch
     _merch_message = _merch_message[0]
 
     await dp.feed_update(bot, generate_query(_merch_message,
-                                             ControlTransMerch(id_transaction = transaction_id, message = 1).pack(), merchant_id))
+                                             ControlTransMerch(id_transaction = transaction_id, message = 1).pack(),
+                                             merchant_id))
     await dp.feed_update(bot, generate_message('hello 4', merchant_id))
     await dp.feed_update(bot, generate_message('hello 5', merchant_id))
     await dp.feed_update(bot, generate_message('73005', merchant_id))
@@ -250,3 +251,24 @@ async def test_cancel_trans_2(dp, bot, new_trans, setup_user_merchant_trans, mer
     await dp.feed_update(bot, generate_query(_user_message,
                                              ControlTransUser(id_transaction = transaction_id, cancel = 2).pack()))
 
+
+async def test_complain_trans(dp, bot, new_trans, setup_user_merchant_trans, merchant_id):
+    transaction_id, message, user_message = await dp.feed_update(bot, generate_message('Public'))
+
+    merchant_message, user_message = await dp.feed_update(bot,
+                                                          generate_query(message,
+                                                                         f"mer_channel:{transaction_id}:True:False",
+                                                                         merchant_id))
+
+    _user_message = await dp.feed_update(bot, generate_message('/mytrans'))
+    _user_message = _user_message[0]
+    await dp.feed_update(bot, generate_query(_user_message,
+                                             ControlTransUser(id_transaction = transaction_id, complain = 1).pack()))
+    complain_code = await dp.feed_update(bot, generate_query(_user_message,
+                                                             ControlTransUser(id_transaction = transaction_id,
+                                                                              complain = 2).pack()))
+    assert complain_code == 'complain'
+
+    uncomplain_code = await dp.feed_update(bot, generate_query(_user_message,
+                                                             ControlTransUser(id_transaction = transaction_id,
+                                                                              complain = -1).pack()))

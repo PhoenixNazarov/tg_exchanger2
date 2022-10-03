@@ -36,6 +36,22 @@ def get_main_keyboard(transaction: Transaction) -> KeyboardBuilder[InlineKeyboar
                 text = _('⛔ Complain'),
                 callback_data = ControlTransMerch(id_transaction = transaction.id, complain = 1).pack())
         )
+    elif transaction.complain:
+        button = InlineKeyboardBuilder().row(
+            InlineKeyboardButton(
+                text = _('📩 Write a message'),
+                callback_data = ControlTransUser(id_transaction = transaction.id, message = 1).pack()),
+            InlineKeyboardButton(
+                text = _('✉️ Message history'),
+                callback_data = ControlTransUser(id_transaction = transaction.id, message = 2).pack()),
+        )
+        if transaction.complain.merchant_complain:
+            button.row(
+                InlineKeyboardButton(
+                    text = _('⛔ Un complain'),
+                    callback_data = ControlTransUser(id_transaction = transaction.id, complain = -1).pack())
+            )
+        return button
     elif transaction.status == TransStatus.wait_good_user:
         return InlineKeyboardBuilder().row(
             InlineKeyboardButton(

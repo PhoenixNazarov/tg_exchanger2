@@ -21,5 +21,5 @@ class User(BaseModel):
 
     ban_time = Column(Integer, default = 0)
 
-    transactions = relationship('Transaction', backref = 'User', lazy = 'selectin')
-    merchant = relationship('Merchant', backref = 'User', lazy = 'selectin', uselist = False)
+    transactions = relationship('Transaction', back_populates = 'maker', lazy = 'selectin')
+    merchant = relationship('Merchant', back_populates = 'user', lazy = 'selectin', uselist = False)

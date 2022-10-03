@@ -1,9 +1,8 @@
-from aiogram import Router
+from aiogram import Router, Bot
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.info import _
-from bot.loader import bot
 from bot.messages.transactions import TransactionChannel
 from bot.messages.transactions import text_transaction
 from bot.services.bot_query import BotQueryController
@@ -12,7 +11,8 @@ router = Router()
 
 
 @router.callback_query(TransactionChannel.filter())
-async def welcome(callback_query: CallbackQuery, callback_data: TransactionChannel, bot_query: BotQueryController):
+async def welcome(callback_query: CallbackQuery, callback_data: TransactionChannel, bot_query: BotQueryController,
+                  bot: Bot):
     transaction = await bot_query.get_transaction(callback_data.id_transaction)
     if transaction is None:
         raise Exception('Transaction is not found')  # todo exception

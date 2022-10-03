@@ -3,7 +3,7 @@ from typing import Optional
 from aiogram.types import User
 
 from bot.config_reader import config
-from bot.database.models import Transaction, Currency, TransStatus, MessageTransaction
+from bot.database.models import Transaction, Currency, TransStatus, MessageTransaction, TransactionComplain
 from bot.database.models import User as UserModel
 from bot.utils.calculate_amount import calculate_get_amount
 from . import users, transactions, merchants
@@ -146,35 +146,57 @@ class BotQueryController:
             raise Exception('You is not merchant of this transaction')  # todo exception
         if transaction.status != TransStatus.in_exchange:
             raise Exception('Cant accept money for this transaction')  # todo exception
+        if transaction.complain:
+            raise Exception('transaction is complain')  # todo exception
+
         transaction.status = TransStatus.wait_good_user
         await transactions.update_transaction(self._query_controller, transaction,
                                               {'status': TransStatus.wait_good_user})
         return transaction
 
-    async def user_get_transaction_money(self, transaction) -> Transaction:
+    async def user_get_transaction_money(self, transaction: Transaction) -> Transaction:
         if transaction.user_id != self._user.id:
             raise Exception('You is not maker of this transaction')  # todo exception
         if transaction.status != TransStatus.wait_good_user:
             raise Exception('Cant accept money for this transaction')  # todo exception
+        if transaction.complain:
+            raise Exception('transaction is complain')  # todo exception
+
         return await transactions.finish_transaction(self._query_controller, transaction, TransStatus.good_finished)
 
-    async def user_cancel_transaction(self, transaction) -> Transaction:
+    async def user_cancel_transaction(self, transaction: Transaction) -> Transaction:
         if transaction.user_id != self._user.id:
             raise Exception('You is not maker of this transaction')  # todo exception
         if transaction.status not in [TransStatus.in_stack, TransStatus.in_exchange]:
             raise Exception('You can not cancel this transaction')  # todo exception
+        if transaction.complain:
+            raise Exception('transaction is complain')  # todo exception
 
         return await transactions.finish_transaction(self._query_controller, transaction, TransStatus.canceled)
 
-    async def complain_transaction(self, transaction):
-        # todo
-        pass
+    async def complain_transaction(self, transaction: Transaction, cause: str) -> TransactionComplain:
+        if transaction.complain:
+            raise Exception('Already complain')  # todo exception
+
+        return await transactions.create_complain(self._query_controller, transaction,
+                                                  transaction.merchant_id == self._user.id, cause)
+
+    async def un_complain_transaction(self, transaction):
+        if not transaction.complain:
+            raise Exception('Is not complain')  # todo exception
+        if (transaction.complain.is_merchant and transaction.merchant_id != self._user.id) and \
+                (transaction.user_id != self._user.id):
+            raise Exception('Not you complained')  # todo exception
+
+        await transactions.delete_complain(self._query_controller, transaction)
 
     async def change_transaction(self, transaction, key: str, value: float):
         if transaction.user_id != self._user.id:
             raise Exception('You is not maker of this transaction')  # todo exception
         if transaction.status not in [TransStatus.in_stack, TransStatus.in_exchange]:
             raise Exception('You can edit this transaction')  # todo exception
+        if transaction.complain:
+            raise Exception('transaction is complain')  # todo exception
 
         if key == 'have_amount':
             return await transactions.update_transaction(

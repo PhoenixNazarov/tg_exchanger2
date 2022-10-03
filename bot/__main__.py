@@ -8,7 +8,7 @@ from bot.database.make_connect import create_db_session
 # from bot.ui_commands import set_bot_commands
 
 
-from loader import dp, bot
+from bot.loader import dp, bot
 
 
 async def main():

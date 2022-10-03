@@ -17,8 +17,8 @@ class Merchant(BaseModel):
     bad_transactions = Column(Integer, default = 0)
     rating = Column(Integer, default = 0)
 
-    user = relationship('User', backref = 'Merchant', lazy = 'selectin', viewonly=True, uselist=False)
-    transactions = relationship('Transaction', backref = 'Merchant', lazy = 'select')
+    user = relationship('User', back_populates = 'merchant', viewonly=True, uselist=False, lazy = 'selectin')
+    transactions = relationship('Transaction', back_populates = 'merchant', lazy = 'selectin')
 
     def __int__(self, id):
         self.id = id
