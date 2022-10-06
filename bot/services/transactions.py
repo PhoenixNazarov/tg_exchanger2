@@ -4,6 +4,7 @@ from bot.database import (
     Transaction, RequisitesCash, RequisitesBankBalance,
     TransGet, TransStatus, MessageTransaction, TransactionComplain)
 from .query_controller import QueryController
+from ..handlers.errors import MyTgException
 
 
 async def create_transaction(session: QueryController,
@@ -77,8 +78,7 @@ async def get_messages(session: QueryController, transaction_id: int) -> list[Me
 async def finish_transaction(session: QueryController, transaction: Transaction,
                              finish_status: TransStatus) -> Transaction:
     if finish_status not in TransStatus.end():
-
-        raise Exception('Cant finish transaction')  # todo exception
+        raise MyTgException(inline_message = 'Cant finish transaction')
     await session(transaction).update_model_values({
         'status': finish_status,
         'active': False

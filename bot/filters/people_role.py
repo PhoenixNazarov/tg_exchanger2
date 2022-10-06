@@ -6,6 +6,8 @@ from aiogram.types import Message, CallbackQuery
 
 from bot.config_reader import config
 
+from bot.handlers.errors import MyTgException
+
 
 class PeopleRoles(Enum):
     USER = 0
@@ -34,7 +36,7 @@ class PeopleRoleFilter(BaseFilter):
         elif isinstance(update, CallbackQuery):
             user_id = update.from_user.id
         else:
-            raise Exception()  # todo
+            raise MyTgException(inline_message = "Cant find your id")
 
         roles = await self.__get_roles(user_id)
         if isinstance(self.people_role, PeopleRoles):

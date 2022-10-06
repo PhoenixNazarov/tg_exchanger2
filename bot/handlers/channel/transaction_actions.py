@@ -2,6 +2,7 @@ from aiogram import Router, Bot
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot.handlers.errors import MyTgException
 from bot.info import _
 from bot.messages.transactions import TransactionChannel
 from bot.messages.transactions import text_transaction
@@ -15,7 +16,7 @@ async def welcome(callback_query: CallbackQuery, callback_data: TransactionChann
                   bot: Bot):
     transaction = await bot_query.get_transaction(callback_data.id_transaction)
     if transaction is None:
-        raise Exception('Transaction is not found')  # todo exception
+        raise MyTgException(inline_message = 'Transaction is not found')
 
     if callback_data.take_transaction:
         await bot_query.merchant_take_transaction(transaction)

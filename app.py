@@ -20,8 +20,10 @@ async def main():
         logging.basicConfig(level = logging.WARNING)
 
     dp.update.middleware(middlewares.SessionMiddleware(await create_db_session()))
+    print('db connected')
 
     try:
+        print('bot started')
         await dp.start_polling(bot, allowed_updates = dp.resolve_used_update_types())
     finally:
         await bot.session.close()

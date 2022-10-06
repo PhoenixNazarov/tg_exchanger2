@@ -26,7 +26,15 @@ class SessionMiddleware(BaseMiddleware):
             await bot_query.get_and_update_user(event.callback_query.from_user)
 
         data['bot_query'] = bot_query
-        result = await handler(event, data)
 
-        await session.close()
+        result = None
+        exception = None
+        try:
+            result = await handler(event, data)
+        except Exception as e:
+            exception = e
+        finally:
+            await session.close()
+        if exception:
+            raise exception
         return result

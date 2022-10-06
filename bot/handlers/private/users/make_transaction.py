@@ -120,6 +120,7 @@ async def type_receive_thb(message: Message, state: FSMContext, bot_query: BotQu
     await state.update_data(rate = float(message.text))
 
     if (await state.get_data())['get_currency'] == Currency.THB:
+        await state.update_data(type_receive_thb = TransGet.none)
         return await end(message, state, bot_query)
 
     await message.answer(text = _("Select the type of receipt THB"),
