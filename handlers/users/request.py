@@ -65,7 +65,6 @@ async def send_requisites(message: Message, bot_query: BotQueryController, bot: 
     await RequestNotification(request, bot_query.get_user(), bot).send_message(message)
 
 
-
 @router.callback_query(RequestActionUser.filter(F.cancel == 1))
 async def pre_cancel(query: CallbackQuery, callback_data: RequestActionUser, bot_query: BotQueryController,
                      bot: Bot):

@@ -5,7 +5,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database.enums import RequestStatus
+from database.enums import RequestStatus, Currency
 from database.models import RequestModel, UserModel, RequestMessageModel, MessageSender
 
 
@@ -17,7 +17,27 @@ class RequestPermException(Exception):
     pass
 
 
-class RequestActionUser(CallbackData, prefix = "req_usr_act"):
+class RequestActionMerchantRate(CallbackData, prefix="reqrate"):
+    bid_id: int
+    amount: int = None
+    currency: Currency = None
+    user_id: int = None
+
+    accept: Optional[int] = None
+    cancel: Optional[int] = None
+
+
+class RequestActionUserRate(CallbackData, prefix="reqrateu"):
+    bid_id: int
+    amount: int = None
+    currency: Currency = None
+    rate: float = None
+
+    accept: Optional[int] = None
+    cancel: Optional[int] = None
+
+
+class RequestActionUser(CallbackData, prefix="req_usr_act"):
     request_id: int
     main: Optional[int] = None
     transfer: Optional[int] = None
@@ -25,7 +45,7 @@ class RequestActionUser(CallbackData, prefix = "req_usr_act"):
     cancel: Optional[int] = None
 
 
-class RequestActionMerchant(CallbackData, prefix = "req_mer_act"):
+class RequestActionMerchant(CallbackData, prefix="req_mer_act"):
     request_id: int
     main: Optional[int] = None
     request: Optional[int] = None
@@ -56,23 +76,24 @@ class RequestNotification:
         keyboard = InlineKeyboardBuilder()
 
         if self.__request.status == RequestStatus.requisites_merchant:
-            keyboard.row(InlineKeyboardButton(text = f"Отправил", callback_data = RequestActionUser(
-                request_id = self.__request.id,
-                transfer = 1
+            keyboard.row(InlineKeyboardButton(text=f"Оплатил", callback_data=RequestActionUser(
+                request_id=self.__request.id,
+                transfer=1
             ).pack()))
 
-        keyboard.row(InlineKeyboardButton(text = f"Отправить сообщение", callback_data = RequestActionUser(
-            request_id = self.__request.id,
-            message = 1
+        keyboard.row(InlineKeyboardButton(text=f"Отправить сообщение", callback_data=RequestActionUser(
+            request_id=self.__request.id,
+            message=1
         ).pack()))
 
-        if self.__request.status in [RequestStatus.request_user, RequestStatus.request_merchant, RequestStatus.request_merchant]:
-            keyboard.row(InlineKeyboardButton(text = f"Отменить", callback_data = RequestActionUser(
-                request_id = self.__request.id,
-                cancel = 1
+        if self.__request.status in [RequestStatus.request_user, RequestStatus.request_merchant,
+                                     RequestStatus.request_merchant]:
+            keyboard.row(InlineKeyboardButton(text=f"Отменить", callback_data=RequestActionUser(
+                request_id=self.__request.id,
+                cancel=1
             ).pack()))
 
-        await self.__bot.send_message(chat_id = self.__get_user(), text = text, reply_markup = keyboard.as_markup())
+        await self.__bot.send_message(chat_id=self.__get_user(), text=text, reply_markup=keyboard.as_markup())
 
     async def send_merchant_request(self):
         text = f'Заявка #{self.__request.id}' \
@@ -85,47 +106,47 @@ class RequestNotification:
         keyboard = InlineKeyboardBuilder()
 
         if self.__request.status == RequestStatus.request_user:
-            keyboard.row(InlineKeyboardButton(text = f"Принять", callback_data = RequestActionMerchant(
-                request_id = self.__request.id,
-                request = 1
+            keyboard.row(InlineKeyboardButton(text=f"Принять", callback_data=RequestActionMerchant(
+                request_id=self.__request.id,
+                request=1
             ).pack()))
-            keyboard.row(InlineKeyboardButton(text = f"Отклонить", callback_data = RequestActionMerchant(
-                request_id = self.__request.id,
-                cancel = 1
+            keyboard.row(InlineKeyboardButton(text=f"Отклонить", callback_data=RequestActionMerchant(
+                request_id=self.__request.id,
+                cancel=1
             ).pack()))
         elif self.__request.status == RequestStatus.request_merchant:
-            keyboard.row(InlineKeyboardButton(text = f"Отправить реквизиты", callback_data = RequestActionMerchant(
-                request_id = self.__request.id,
-                requisites = 1
+            keyboard.row(InlineKeyboardButton(text=f"Отправить реквизиты", callback_data=RequestActionMerchant(
+                request_id=self.__request.id,
+                requisites=1
             ).pack()))
         elif self.__request.status == RequestStatus.transfer_user:
-            keyboard.row(InlineKeyboardButton(text = f"Получил", callback_data = RequestActionMerchant(
-                request_id = self.__request.id,
-                accept = 1
+            keyboard.row(InlineKeyboardButton(text=f"Получил", callback_data=RequestActionMerchant(
+                request_id=self.__request.id,
+                accept=1
             ).pack()))
         elif self.__request.status == RequestStatus.accept_merchant:
-            keyboard.row(InlineKeyboardButton(text = f"Отправил", callback_data = RequestActionMerchant(
-                request_id = self.__request.id,
-                transfer = 1
+            keyboard.row(InlineKeyboardButton(text=f"Отправил", callback_data=RequestActionMerchant(
+                request_id=self.__request.id,
+                transfer=1
             ).pack()))
 
-        keyboard.row(InlineKeyboardButton(text = f"Отправить сообщение", callback_data = RequestActionMerchant(
-            request_id = self.__request.id,
-            message = 1
+        keyboard.row(InlineKeyboardButton(text=f"Отправить сообщение", callback_data=RequestActionMerchant(
+            request_id=self.__request.id,
+            message=1
         ).pack()))
         if self.__request.status in [RequestStatus.request_merchant, RequestStatus.request_merchant]:
-            keyboard.row(InlineKeyboardButton(text = f"Отменить", callback_data = RequestActionMerchant(
-                request_id = self.__request.id,
-                cancel = 1
+            keyboard.row(InlineKeyboardButton(text=f"Отменить", callback_data=RequestActionMerchant(
+                request_id=self.__request.id,
+                cancel=1
             ).pack()))
 
-        await self.__bot.send_message(chat_id = self.__get_merchant(), text = text, reply_markup = keyboard.as_markup())
+        await self.__bot.send_message(chat_id=self.__get_merchant(), text=text, reply_markup=keyboard.as_markup())
 
     async def __send_user(self, text, keyboard=None):
-        await self.__bot.send_message(chat_id = self.__get_user(), text = text, reply_markup = keyboard)
+        await self.__bot.send_message(chat_id=self.__get_user(), text=text, reply_markup=keyboard)
 
     async def __send_merchant(self, text, keyboard=None):
-        await self.__bot.send_message(chat_id = self.__get_merchant(), text = text, reply_markup = keyboard)
+        await self.__bot.send_message(chat_id=self.__get_merchant(), text=text, reply_markup=keyboard)
 
     def __get_merchant(self):
         return self.__request.merchant_id
@@ -216,15 +237,15 @@ class RequestNotification:
     # messages
     async def send_message(self, message: RequestMessageModel):
         keyboard_user = InlineKeyboardBuilder()
-        keyboard_user.row(InlineKeyboardButton(text = f"Ответить", callback_data = RequestActionUser(
-            request_id = self.__request.id,
-            message = 1
+        keyboard_user.row(InlineKeyboardButton(text=f"Ответить", callback_data=RequestActionUser(
+            request_id=self.__request.id,
+            message=1
         ).pack()))
         keyboard_merchant = InlineKeyboardBuilder()
 
-        keyboard_merchant.row(InlineKeyboardButton(text = f"Ответить", callback_data = RequestActionMerchant(
-            request_id = self.__request.id,
-            message = 1
+        keyboard_merchant.row(InlineKeyboardButton(text=f"Ответить", callback_data=RequestActionMerchant(
+            request_id=self.__request.id,
+            message=1
         ).pack()))
 
         if message.sender == MessageSender.merchant:
