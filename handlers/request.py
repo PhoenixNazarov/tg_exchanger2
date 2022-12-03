@@ -2,7 +2,7 @@ from typing import Optional
 
 from aiogram import Bot
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, BufferedInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database.enums import RequestStatus, Currency
@@ -148,6 +148,22 @@ class RequestNotification:
     async def __send_merchant(self, text, keyboard=None):
         await self.__bot.send_message(chat_id=self.__get_merchant(), text=text, reply_markup=keyboard)
 
+    async def __send_user_photo(self, photo, keyboard=None):
+        await self.__bot.send_photo(chat_id=self.__get_user(), photo=BufferedInputFile.from_file(path=photo),
+                                    reply_markup=keyboard)
+
+    async def __send_merchant_photo(self, photo, keyboard=None):
+        await self.__bot.send_photo(chat_id=self.__get_merchant(), photo=BufferedInputFile.from_file(path=photo),
+                                    reply_markup=keyboard)
+
+    async def __send_user_document(self, document, keyboard=None):
+        await self.__bot.send_document(chat_id=self.__get_user(), document=BufferedInputFile.from_file(path=document),
+                                       reply_markup=keyboard)
+
+    async def __send_merchant_document(self, document, keyboard=None):
+        await self.__bot.send_document(chat_id=self.__get_merchant(),
+                                       document=BufferedInputFile.from_file(path=document), reply_markup=keyboard)
+
     def __get_merchant(self):
         return self.__request.merchant_id
 
@@ -235,7 +251,7 @@ class RequestNotification:
         await self.send_merchant_request()
 
     # messages
-    async def send_message(self, message: RequestMessageModel):
+    async def send_message(self, message: RequestMessageModel, photo=False, document=False):
         keyboard_user = InlineKeyboardBuilder()
         keyboard_user.row(InlineKeyboardButton(text=f"Ответить", callback_data=RequestActionUser(
             request_id=self.__request.id,
@@ -249,18 +265,38 @@ class RequestNotification:
         ).pack()))
 
         if message.sender == MessageSender.merchant:
-            await self.__send_user(f"Вы получили сообщение: \n\n{message.text}")
+            if photo:
+                await self.__send_user_photo(message.text)
+            elif document:
+                await self.__send_user_document(message.text)
+            else:
+                await self.__send_user(f"Вы получили сообщение: \n\n{message.text}")
             await self.send_user_request()
 
             await self.__send_merchant(f"Сообщение отправлено")
         elif message.sender == MessageSender.user:
-            await self.__send_merchant(f"Вы получили сообщение: \n\n{message.text}")
+            if photo:
+                await self.__send_merchant_photo(message.text)
+            elif document:
+                await self.__send_merchant_document(message.text)
+            else:
+                await self.__send_merchant(f"Вы получили сообщение: \n\n{message.text}")
             await self.send_merchant_request()
 
             await self.__send_user(f"Сообщение отправлено")
         else:
-            await self.__send_user(f"Вы получили сообщение: \n\n{message.text}")
+            if photo:
+                await self.__send_user_photo(message.text)
+            elif document:
+                await self.__send_user_document(message.text)
+            else:
+                await self.__send_user(f"Вы получили сообщение: \n\n{message.text}")
             await self.send_user_request()
 
-            await self.__send_merchant(f"Вы получили сообщение: \n\n{message.text}")
+            if photo:
+                await self.__send_merchant_photo(message.text)
+            elif document:
+                await self.__send_merchant_document(message.text)
+            else:
+                await self.__send_merchant(f"Вы получили сообщение: \n\n{message.text}")
             await self.send_merchant_request()
